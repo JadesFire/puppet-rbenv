@@ -127,7 +127,7 @@ class rbenv (
     source   => 'git@github.com:rbenv/ruby-build.git',
     owner    => "${owner}",
     group    => "${group}",
-    require  => Vcsrepo ["${install_dir}"],
+    require  => Vcsrepo["${install_dir}"],
   }
 
   file { '/etc/profile.d/rbenv.sh':
