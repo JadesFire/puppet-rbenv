@@ -117,16 +117,12 @@ define rbenv::build (
     unless  => "test -d ${install_dir}/versions/${title}",
     require => Class['rbenv'],
   }->
-  exec { "git-pull-rubybuild-${title}":
-    command => 'git reset --hard HEAD && git pull',
-    cwd     => "${install_dir}/plugins/ruby-build",
-    user    => 'root',
-    unless  => "test -d ${install_dir}/versions/${title}",
-    require => Rbenv::Plugin['sstephenson/ruby-build'],
-  }->
   exec { "rbenv-install-${title}":
     # patch file must be read from stdin only if supplied
-    command => sprintf("rbenv install ${title}${install_options}%s", $patch ? { undef => '', false => '', default => " < ${patch_file}" }),
+    command => sprintf("rbenv install ${title}${install_options}%s", $patch ? {
+    undef   => '',
+    false   => '',
+    default => " < ${patch_file}" }),
     creates => "${install_dir}/versions/${title}",
   }~>
   exec { "rbenv-ownit-${title}":

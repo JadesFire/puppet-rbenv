@@ -37,30 +37,24 @@ define rbenv::plugin(
 ) {
   include rbenv
 
-  $plugin = split($name, '/') # divide plugin name into array
-
   Exec { environment => $env }
 
-  exec { "install-${name}":
-    command => "/usr/bin/git clone https://github.com/${name}.git",
-    cwd     => "${install_dir}/plugins",
-    onlyif  => "/usr/bin/test -d ${install_dir}/plugins",
-    unless  => "/usr/bin/test -d ${install_dir}/plugins/${plugin[1]}",
-  }~>
-  exec { "rbenv-permissions-${name}":
-    command     => "/bin/chown -R ${rbenv::owner}:${rbenv::group} \
-                    ${install_dir} && \
-                    /bin/chmod -R g+w ${install_dir}",
-    refreshonly => true,
-  }
-
-  # run `git pull` on each run if we want to keep the plugin updated
   if $latest == true {
-    exec { "update-${name}":
-      command => '/usr/bin/git pull',
-      cwd     => "${install_dir}/plugins/${plugin[1]}",
-      user    => $rbenv::owner,
-      onlyif  => "/usr/bin/test -d ${install_dir}/plugins/${plugin[1]}",
+    vcsrepo { "${install_dir}/plugins/${name}":
+      ensure   => 'present',
+      provider => 'git',
+      source   => "https://github.com/${name}.git",
+      revision => 'latest',
+      user     => "${rbenv::owner}",
+      group    => "${rbenv::group}",
+    }
+  } else {
+    vcsrepo { "${install_dir}/plugins/${name}":
+      ensure   => 'present',
+      provider => 'git',
+      source   => "https://github.com/${name}.git",
+      user     => "${rbenv::owner}",
+      group    => "${rbenv::group}",
     }
   }
 }

@@ -7,7 +7,7 @@
 #
 # [$repo_path]
 #   This is the git repo used to install rbenv.
-#   Default: 'https://github.com/sstephenson/rbenv.git'
+#   Default: 'https://github.com/rbenv/rbenv'
 #   This variable is required.
 #
 # [$install_dir]
@@ -65,7 +65,7 @@
 # Copyright 2013 Justin Downing
 #
 class rbenv (
-  $repo_path   = 'https://github.com/sstephenson/rbenv.git',
+  $repo_path   = 'https://github.com/rbenv/rbenv',
   $install_dir = '/usr/local/rbenv',
   $owner       = 'root',
   $group       = $rbenv::params::group,
@@ -81,13 +81,31 @@ class rbenv (
     include rbenv::deps
   }
 
-  exec { 'git-clone-rbenv':
-    command     => "/usr/bin/git clone ${rbenv::repo_path} ${install_dir}",
-    creates     => $install_dir,
-    cwd         => '/',
-    user        => $owner,
-    environment => $env,
-    require     => Package['git'],
+  if $latest == true {
+    vcsrepo { "${install_dir}":
+      ensure   => 'latest',
+      provider => 'git',
+      source   => "${rbenv::repo_path}",
+      owner    => "${owner}",
+      group    => "${group}",
+    }
+  } elsif $version {
+    vcsrepo { "${install_dir}":
+      ensure   => 'latest',
+      provider => 'git',
+      source   => "${rbenv::repo_path}",
+      revision => "${version}",
+      owner    => "${owner}",
+      group    => "${group}",
+    }
+  } else {
+    vcsrepo { "${install_dir}":
+      ensure   => 'present',
+      provider => 'git',
+      source   => "${rbenv::repo_path}",
+      owner    => "${owner}",
+      group    => "${group}",
+    }
   }
 
   file { [
@@ -96,10 +114,20 @@ class rbenv (
     "${install_dir}/shims",
     "${install_dir}/versions"
   ]:
-    ensure => directory,
-    owner  => $owner,
-    group  => $group,
-    mode   => '0775',
+    ensure  => directory,
+    owner   => "${owner}",
+    group   => "${group}",
+    mode    => '0775',
+    require => Vcsrepo["${install_dir}"],
+  }
+
+  vcsrepo { "${install_dir}/plugins/ruby-build":
+    ensure   => 'latest',
+    provider => 'git',
+    source   => 'git@github.com:rbenv/ruby-build.git',
+    owner    => "${owner}",
+    group    => "${group}",
+    require  => Vcsrepo ["${install_dir}"],
   }
 
   file { '/etc/profile.d/rbenv.sh':
@@ -107,43 +135,4 @@ class rbenv (
     content => template('rbenv/rbenv.sh'),
     mode    => '0775'
   }
-
-  # run `git pull` on each run if we want to keep rbenv updated
-  if $latest == true {
-    exec { 'checkout-rbenv':
-      command     => '/usr/bin/git checkout master',
-      cwd         => $install_dir,
-      user        => $owner,
-      environment => $env,
-      onlyif      => '/usr/bin/test $(git rev-parse --abbrev-ref HEAD) != "master"',
-      require     => File[$install_dir],
-    } ->
-    exec { 'update-rbenv':
-      command     => '/usr/bin/git pull',
-      cwd         => $install_dir,
-      user        => $owner,
-      environment => $env,
-      unless      => '/usr/bin/git fetch --quiet; /usr/bin/test $(git rev-parse HEAD) == $(git rev-parse @{u})',
-      require     => File[$install_dir],
-    }
-  } elsif $version {
-    exec { 'fetch-rbenv':
-      command     => '/usr/bin/git fetch',
-      cwd         => $install_dir,
-      user        => $owner,
-      environment => $env,
-      unless      => "/usr/bin/test $(/usr/bin/git describe --tags) == '${version}'",
-      require     => File[$install_dir],
-    } ~>
-    exec { 'update-rbenv':
-      command     => "/usr/bin/git checkout ${version}",
-      cwd         => $install_dir,
-      user        => $owner,
-      environment => $env,
-      refreshonly => true,
-    }
-  }
-
-  Exec['git-clone-rbenv'] -> File[$install_dir]
-
 }
