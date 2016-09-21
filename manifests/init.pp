@@ -124,7 +124,7 @@ class rbenv (
   vcsrepo { "${install_dir}/plugins/ruby-build":
     ensure   => 'latest',
     provider => 'git',
-    source   => 'git@github.com:rbenv/ruby-build.git',
+    source   => 'https://github.com/rbenv/ruby-build.git',
     owner    => "${owner}",
     group    => "${group}",
     require  => Vcsrepo["${install_dir}"],
